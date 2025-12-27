@@ -7,6 +7,8 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.content.TextContent
 import io.ktor.http.contentType
 import ireader.core.http.HttpClients
@@ -44,6 +46,7 @@ open class WebscrapingTranslateEngine(
             AI_SERVICE.CHATGPT -> "ChatGPT WebView (No API Key)"
             AI_SERVICE.DEEPSEEK -> "DeepSeek WebView (No API Key)"
             AI_SERVICE.GEMINI -> "Google Gemini API"
+            AI_SERVICE.OPENROUTER -> "OpenRouter AI"
         }
     override val supportsAI: Boolean = true
     override val supportsContextAwareTranslation: Boolean = true
@@ -78,7 +81,8 @@ open class WebscrapingTranslateEngine(
     enum class AI_SERVICE {
         CHATGPT,
         DEEPSEEK,
-        GEMINI
+        GEMINI,
+        OPENROUTER
     }
     
     // Function to set the current AI service
@@ -92,6 +96,7 @@ open class WebscrapingTranslateEngine(
             AI_SERVICE.CHATGPT -> chatGptUrl
             AI_SERVICE.DEEPSEEK -> deepSeekUrl
             AI_SERVICE.GEMINI -> chatGptUrl // Gemini uses API so we just use ChatGPT WebView as fallback
+            AI_SERVICE.OPENROUTER -> chatGptUrl // API based
         }
     }
     
@@ -99,6 +104,7 @@ open class WebscrapingTranslateEngine(
     private val CHATGPT_COOKIE_STORAGE_KEY = "chatgpt_cookies"
     private val DEEPSEEK_COOKIE_STORAGE_KEY = "deepseek_cookies"
     private val GEMINI_API_KEY = "gemini_api_key"
+    private val OPENROUTER_API_KEY = "openrouter_api_key"
     
     // Function to get the current cookie storage key
     private fun getCurrentCookieKey(): String {
@@ -106,6 +112,7 @@ open class WebscrapingTranslateEngine(
             AI_SERVICE.CHATGPT -> CHATGPT_COOKIE_STORAGE_KEY
             AI_SERVICE.DEEPSEEK -> DEEPSEEK_COOKIE_STORAGE_KEY
             AI_SERVICE.GEMINI -> GEMINI_API_KEY
+            AI_SERVICE.OPENROUTER -> OPENROUTER_API_KEY
         }
     }
     
@@ -192,6 +199,7 @@ open class WebscrapingTranslateEngine(
             AI_SERVICE.CHATGPT -> readerPreferences.chatGptCookies().set(cookies)
             AI_SERVICE.DEEPSEEK -> readerPreferences.deepSeekCookies().set(cookies)
             AI_SERVICE.GEMINI -> readerPreferences.geminiApiKey().set(cookies)
+            AI_SERVICE.OPENROUTER -> readerPreferences.openRouterApiKey().set(cookies)
         }
     }
     
@@ -201,6 +209,7 @@ open class WebscrapingTranslateEngine(
             AI_SERVICE.CHATGPT -> readerPreferences.chatGptCookies().get()
             AI_SERVICE.DEEPSEEK -> readerPreferences.deepSeekCookies().get()
             AI_SERVICE.GEMINI -> readerPreferences.geminiApiKey().get()
+            AI_SERVICE.OPENROUTER -> readerPreferences.openRouterApiKey().get()
         }
     }
     
@@ -215,6 +224,7 @@ open class WebscrapingTranslateEngine(
             AI_SERVICE.CHATGPT -> readerPreferences.chatGptCookies().set("")
             AI_SERVICE.DEEPSEEK -> readerPreferences.deepSeekCookies().set("")
             AI_SERVICE.GEMINI -> readerPreferences.geminiApiKey().set("")
+            AI_SERVICE.OPENROUTER -> readerPreferences.openRouterApiKey().set("")
         }
         _loginState.value = LoginState.LOGGED_OUT
     }
@@ -223,7 +233,7 @@ open class WebscrapingTranslateEngine(
     fun isLoggedIn(): Boolean {
         return when (currentService) {
             AI_SERVICE.CHATGPT, AI_SERVICE.DEEPSEEK -> _loginState.value == LoginState.LOGGED_IN && getCookies().isNotEmpty()
-            AI_SERVICE.GEMINI -> getCookies().isNotEmpty() // For API-based services, we just need the API key
+            AI_SERVICE.GEMINI, AI_SERVICE.OPENROUTER -> getCookies().isNotEmpty() // For API-based services, we just need the API key
         }
     }
 
@@ -385,6 +395,10 @@ open class WebscrapingTranslateEngine(
         // For Gemini, we use direct API calls instead of WebView
         if (currentService == AI_SERVICE.GEMINI) {
             return translateWithGeminiApi(message)
+        }
+
+        if (currentService == AI_SERVICE.OPENROUTER) {
+            return translateWithOpenRouterApi(message)
         }
         
         // For WebView-based services (ChatGPT, DeepSeek)
@@ -585,7 +599,32 @@ open class WebscrapingTranslateEngine(
         val uri: String? = null,
         val license: String? = null
     )
-    
+
+    @Serializable
+    private data class OpenRouterRequest(
+        val model: String,
+        val messages: List<OpenRouterMessage>,
+        val temperature: Float = 0.1f,
+        @SerialName("max_tokens") val maxTokens: Int = 4000
+    )
+
+    @Serializable
+    private data class OpenRouterMessage(
+        val role: String,
+        val content: String
+    )
+
+    @Serializable
+    private data class OpenRouterResponse(
+        val choices: List<OpenRouterChoice> = emptyList()
+    )
+
+    @Serializable
+    private data class OpenRouterChoice(
+        val message: OpenRouterMessage? = null,
+        @SerialName("finish_reason") val finishReason: String? = null
+    )
+
     // Define available Gemini models
     companion object {
         // No default models - users must fetch from API
@@ -892,9 +931,61 @@ open class WebscrapingTranslateEngine(
                 throw Exception("Error with Gemini API model $modelName: ${e.message}")
             }
         }
-        
+
         // If we've exhausted retries, throw the last exception
         throw lastException ?: Exception("Failed to communicate with Gemini API model $modelName after $maxRetries attempts")
+    }
+
+    private suspend fun translateWithOpenRouterApi(prompt: String): String {
+        val apiKey = getCookies()
+
+        if (apiKey.isBlank()) {
+            throw Exception("OpenRouter API key is not set")
+        }
+
+        val model = readerPreferences.geminiModel().get().ifBlank { "google/gemini-flash-1.5" }
+
+        val response = client.default.post("https://openrouter.ai/api/v1/chat/completions") {
+            contentType(ContentType.Application.Json)
+            headers {
+                append(HttpHeaders.Authorization, "Bearer $apiKey")
+                append("HTTP-Referer", "https://github.com/IReaderApp/IReader")
+                append("X-Title", "IReader")
+            }
+
+            setBody(
+                OpenRouterRequest(
+                    model = model,
+                    messages = listOf(
+                        OpenRouterMessage(
+                            role = "system",
+                            content = "You are a professional translator. Preserve ---PARAGRAPH_BREAK--- markers."
+                        ),
+                        OpenRouterMessage(
+                            role = "user",
+                            content = prompt
+                        )
+                    ),
+                    temperature = 0.1f,
+                    maxTokens = 4000
+                )
+            )
+        }
+
+        if (response.status.value !in 200..299) {
+            val errorBody = response.bodyAsText()
+            throw Exception("OpenRouter API error (${response.status.value}): $errorBody")
+        }
+
+        val responseText = response.bodyAsText()
+        val parsed = Json { ignoreUnknownKeys = true }.decodeFromString<OpenRouterResponse>(responseText)
+        val content = parsed.choices.firstOrNull()?.message?.content?.trim()
+
+        if (content.isNullOrEmpty()) {
+            throw Exception("No content in OpenRouter API response")
+        }
+
+        return content
     }
 }
 
@@ -932,6 +1023,23 @@ class GeminiTranslateEngine(httpClients: HttpClients, readerPreferences: ReaderP
     // Gemini free tier: 15 RPM (requests per minute) = 4 seconds between requests
     // We use 5 seconds to be safe
     override val rateLimitDelayMs: Long = 5000L
-    
+
+    override val isOffline: Boolean = false
+}
+
+class OpenRouterTranslateEngine(httpClients: HttpClients, readerPreferences: ReaderPreferences) :
+    WebscrapingTranslateEngine(httpClients, readerPreferences) {
+    init{
+        setAIService(WebscrapingTranslateEngine.AI_SERVICE.OPENROUTER)
+    }
+
+    override val id: Long = 9L
+    override val engineName: String = "OpenRouter AI"
+    override val requiresApiKey: Boolean = true
+
+    override val maxCharsPerRequest: Int = 6000
+
+    override val rateLimitDelayMs: Long = 5000L
+
     override val isOffline: Boolean = false
 }

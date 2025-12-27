@@ -157,6 +157,7 @@ private fun getShortEngineName(engineId: Long, fullName: String): String {
         6L -> "ChatGPT"
         7L -> "DeepSeek WV"
         8L -> "Gemini"
+        9L -> "OpenRouter"
         else -> {
             // For plugin engines, use a shortened version of the name
             if (fullName.length > 10) {
@@ -182,6 +183,7 @@ fun getEngineIcon(engineId: Long): ImageVector {
         6L -> Icons.AutoMirrored.Filled.Chat
         7L -> Icons.Default.SmartToy
         8L -> Icons.Default.Stars
+        9L -> Icons.Default.Cloud
         else -> Icons.Default.Extension // Plugin engines get extension icon
     }
 }

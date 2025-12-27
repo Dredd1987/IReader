@@ -101,19 +101,20 @@ fun TranslationSettingsScreenV2(
         }
     }
 
-    val currentEngine = remember(engines, viewModel.translatorEngine.value) { 
-        engines.find { it.id == viewModel.translatorEngine.value } 
+    val currentEngine = remember(engines, viewModel.translatorEngine.value) {
+        engines.find { it.id == viewModel.translatorEngine.value }
     }
     val isAiEngine = currentEngine?.supportsContextAwareTranslation == true
     val isGeminiSelected = viewModel.translatorEngine.value == 8L
     val isOpenAISelected = viewModel.translatorEngine.value == 2L
     val isDeepSeekSelected = viewModel.translatorEngine.value == 3L
+    val isOpenRouterSelected = viewModel.translatorEngine.value == 9L
     
     // Check if current engine is a plugin
     val isPluginEngine = currentEngine is PluginTranslateEngineWrapper
     
     // Show API key section for engines that need it (Gemini, OpenAI, DeepSeek, or plugin engines that require API key)
-    val showApiKeySection = isGeminiSelected || isOpenAISelected || isDeepSeekSelected || 
+    val showApiKeySection = isGeminiSelected || isOpenAISelected || isDeepSeekSelected || isOpenRouterSelected ||
                            (currentEngine?.requiresApiKey == true)
 
     // Load cached models on first composition
@@ -324,6 +325,7 @@ private fun getApiKeyForEngine(viewModel: TranslationSettingsViewModel, engineId
         2L -> viewModel.openAIApiKey.value
         3L -> viewModel.deepSeekApiKey.value
         8L -> viewModel.geminiApiKey.value
+        9L -> viewModel.openRouterApiKey.value
         else -> ""
     }
 }
@@ -333,5 +335,6 @@ private fun setApiKeyForEngine(viewModel: TranslationSettingsViewModel, engineId
         2L -> viewModel.updateOpenAIApiKey(value)
         3L -> viewModel.updateDeepSeekApiKey(value)
         8L -> viewModel.updateGeminiApiKey(value)
+        9L -> viewModel.updateOpenRouterApiKey(value)
     }
 }

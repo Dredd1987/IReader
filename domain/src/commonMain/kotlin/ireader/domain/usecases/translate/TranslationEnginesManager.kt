@@ -45,10 +45,12 @@ class TranslationEnginesManager(
     // Only keep essential built-in engines:
     // - Google ML Kit (offline, default)
     // - Gemini API (requires API key, for users who prefer Google's AI)
+    // - OpenRouter (API key, OpenRouter-hosted models)
     // Other engines are available as plugins from the Feature Store
     private val builtInEngines = listOf(
         GoogleTranslateML(),  // id=0, offline, default
-        GeminiTranslateEngine(httpClients, readerPreferences)  // id=8, requires API key
+        GeminiTranslateEngine(httpClients, readerPreferences),  // id=8, requires API key
+        OpenRouterTranslateEngine(httpClients, readerPreferences) // id=9, requires API key
     )
     
     // Cache for translation results to improve performance

@@ -39,6 +39,7 @@ class TranslationSettingsViewModel(
     val openAIApiKey = readerPreferences.openAIApiKey().asState()
     val deepSeekApiKey = readerPreferences.deepSeekApiKey().asState()
     val geminiApiKey = readerPreferences.geminiApiKey().asState()
+    val openRouterApiKey = readerPreferences.openRouterApiKey().asState()
     val geminiModel = readerPreferences.geminiModel().asState()
     val translatorContentType = readerPreferences.translatorContentType().asState()
     val translatorToneType = readerPreferences.translatorToneType().asState()
@@ -87,9 +88,13 @@ class TranslationSettingsViewModel(
     fun updateDeepSeekApiKey(value: String) {
         deepSeekApiKey.value = value
     }
-    
+
     fun updateGeminiApiKey(value: String) {
         geminiApiKey.value = value
+    }
+
+    fun updateOpenRouterApiKey(value: String) {
+        openRouterApiKey.value = value
     }
     
     fun updateGeminiModel(value: String) {
@@ -132,6 +137,7 @@ class TranslationSettingsViewModel(
                         2L -> openAIApiKey.value // OpenAI
                         3L -> deepSeekApiKey.value // DeepSeek
                         8L -> geminiApiKey.value // Gemini
+                        9L -> openRouterApiKey.value // OpenRouter
                         else -> ""
                     }
                     

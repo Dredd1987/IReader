@@ -267,6 +267,10 @@ Visit.*for more chapters"""
     fun geminiApiKey(): Preference<String> {
         return preferenceStore.getString("gemini_api_key", "")
     }
+
+    fun openRouterApiKey(): Preference<String> {
+        return preferenceStore.getString("openrouter_api_key", "")
+    }
     
     fun huggingFaceApiKey(): Preference<String> {
         return preferenceStore.getString("huggingface_api_key", "")

@@ -160,12 +160,24 @@ abstract class TranslateEngine {
         const val WEBSCRAPING = 6L
         const val DEEPSEEK_WEBVIEW = 7L
         const val GEMINI = 8L
-        
+        const val OPENROUTER = 9L
+
         // Add new engines to the values() method
         fun values(): Array<Long> {
-            return arrayOf(BUILT_IN, GOOGLE, BING, OPENAI, DEEPSEEK, OLLAMA, WEBSCRAPING, DEEPSEEK_WEBVIEW, GEMINI)
+            return arrayOf(
+                BUILT_IN,
+                GOOGLE,
+                BING,
+                OPENAI,
+                DEEPSEEK,
+                OLLAMA,
+                WEBSCRAPING,
+                DEEPSEEK_WEBVIEW,
+                GEMINI,
+                OPENROUTER
+            )
         }
-        
+
         // Map engine ID to name for display
         fun valueOf(id: Long): String {
             return when (id) {
@@ -178,6 +190,7 @@ abstract class TranslateEngine {
                 WEBSCRAPING -> "AI Translation (No API Key)"
                 DEEPSEEK_WEBVIEW -> "DeepSeek WebView (No API Key)"
                 GEMINI -> "Google Gemini"
+                OPENROUTER -> "OpenRouter"
                 else -> "Unknown"
             }
         }
